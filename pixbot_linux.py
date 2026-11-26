@@ -26,6 +26,9 @@ NAME = "linux"
 _lock = threading.RLock()
 _d = display.Display()
 _root = _d.screen().root
+if not _d.has_extension("SHAPE"):
+    print("pixbot: this X server has no SHAPE extension - see-through windows won't work",
+          file=__import__("sys").stderr)
 _atoms = {}
 
 
@@ -380,16 +383,53 @@ class ShapedCanvas:
             if not self.win.winfo_ismapped():
                 self._rects = None
                 return
-            xid = int(self.win.wm_frame(), 16)
-        except Exception:
+            if getattr(self, "_xids", None) is None:
+                self._xids = _top_chain(self.win.winfo_id())
+        except Exception as e:
+            _report("shape setup", e)
             return
         with _lock:
             try:
-                _win(xid).shape_rectangles(0, 0, 0, 0, 0, rects)     # Set, Bounding, Unsorted
+                for xid in self._xids:      # Tk's toplevel and its wrapper window
+                    _win(xid).shape_rectangles(0, 0, 0, 0, 0, rects)   # Set, Bounding, Unsorted
                 _d.flush()
                 self._rects = rects
-            except Exception:
+            except Exception as e:
+                _report("shape", e)
                 self._rects = None
+                self._xids = None
+
+
+_reported = set()
+
+
+def _report(what, e):
+    """Say once (on stderr) why something didn't work, instead of failing silently."""
+    import sys
+    if what not in _reported:
+        _reported.add(what)
+        print(f"pixbot: {what} failed: {e!r}", file=sys.stderr)
+
+
+@_locked
+def _top_chain(xid):
+    """The window and its parents up to (not including) the screen's root window."""
+    out = []
+    w = _win(xid)
+    for _ in range(6):
+        out.append(w.id)
+        parent = w.query_tree().parent
+        if not parent or parent.id == _root.id:
+            break
+        w = parent
+    return out
+
+
+def _x_error(err, request):
+    _report("X request", err)
+
+
+_d.set_error_handler(_x_error)
 
 
 # ---------------- screens ----------------

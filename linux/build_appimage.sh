@@ -21,7 +21,7 @@ lic="$(find /usr/share/doc/fonts-dejavu-core -name 'copyright' | head -1 || true
 # 1) PyInstaller: Pixbot + Python + Tk in one folder
 hidden=(pixbot_acts pixbot_catalog pixbot_common pixbot_movies pixbot_outfits pixbot_paint
         pixbot_paths pixbot_vision pixbot_os pixbot_linux
-        numpy PIL PIL.Image PIL.ImageGrab PIL.ImageDraw PIL.ImageFont PIL.ImageTk
+        numpy PIL PIL.Image PIL.ImageGrab PIL.ImageDraw PIL.ImageFont PIL.ImageTk PIL._tkinter_finder
         tkinter tkinter.ttk tkinter.colorchooser webbrowser subprocess threading collections
         traceback shutil json math random runpy fcntl glob signal)
 args=(--noconfirm --clean --onedir --windowed --name Pixbot
