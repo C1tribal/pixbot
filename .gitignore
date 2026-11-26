@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+# runtime files (normally in %APPDATA%\Pixbot, ignored here just in case)
+pixbot_settings.json
+pixbot_cmd.json
+pixbot.pid
