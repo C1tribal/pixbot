@@ -23,7 +23,7 @@ He walks along your taskbar, hops onto your windows, plays with your cursor, and
 ## Download and install
 
 <p align="center"><a href="https://github.com/C1tribal/pixbot/releases/latest/download/Pixbot-Installer.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20Windows-Pixbot--Installer.exe-2EA44F?style=for-the-badge" alt="Download Pixbot-Installer.exe for Windows"></a>
-<a href="https://github.com/C1tribal/pixbot/releases/latest/download/Pixbot-x86_64.AppImage"><img src="https://img.shields.io/badge/%E2%AC%87%20Linux-Pixbot--x86__64.AppImage-2EA44F?style=for-the-badge" alt="Download Pixbot-x86_64.AppImage for Linux"></a></p>
+<a href="https://github.com/C1tribal/pixbot/releases/latest/download/Pixbot-Linux.AppImage"><img src="https://img.shields.io/badge/%E2%AC%87%20Linux-Pixbot--Linux.AppImage-2EA44F?style=for-the-badge" alt="Download Pixbot-Linux.AppImage for Linux"></a></p>
 
 ### Windows
 
@@ -44,10 +44,10 @@ Download [`Pixbot.exe`](https://github.com/C1tribal/pixbot/releases/latest/downl
 
 ### Linux
 
-1. Click the **Linux** button above to download **`Pixbot-x86_64.AppImage`**.
+1. Click the **Linux** button above to download **`Pixbot-Linux.AppImage`**.
 2. Make it runnable: right-click it → **Properties → Permissions → Allow executing file as program**, or in a terminal:
    ```bash
-   chmod +x Pixbot-x86_64.AppImage
+   chmod +x Pixbot-Linux.AppImage
    ```
 3. Double-click it. Pixbot appears at the bottom of your screen and his app opens. He also adds himself to your **app menu**, so next time just search for *Pixbot* (you can turn this off in the app).
 
@@ -56,7 +56,7 @@ Download [`Pixbot.exe`](https://github.com/C1tribal/pixbot/releases/latest/downl
 Good to know on Linux:
 - Pixbot runs through X11. On a **Wayland** desktop (the default on recent GNOME and KDE) he still walks around, but he can only see and climb windows of X11 apps, and he only notices your mouse when it is over one of those.
 - He can't hop onto the text box you click into (that one uses a Windows-only feature).
-- If the AppImage won't start, your system may be missing FUSE: on Ubuntu run `sudo apt install libfuse2t64` (22.04: `libfuse2`), or start it with `./Pixbot-x86_64.AppImage --appimage-extract-and-run`.
+- If the AppImage won't start, your system may be missing FUSE: on Ubuntu run `sudo apt install libfuse2t64` (22.04: `libfuse2`), or start it with `./Pixbot-Linux.AppImage --appimage-extract-and-run`.
 
 > Downloaded a `pixbot-main.zip` full of `.py` files? That's the source code (from the green **Code** button), not the app. Use the download button above instead.
 
@@ -84,7 +84,7 @@ Everything is in this repository and you can read every line. In short:
 | **Keyboard and mouse** | He only checks *when* you last used the mouse or keyboard and roughly how fast you type (to type along with you). He never records which keys you press, apart from noticing Backspace and Caps Lock for two small reactions. |
 | **Files** | Pixbot writes only his own settings, to `%APPDATA%\Pixbot` on Windows and `~/.config/Pixbot` on Linux. The Windows installer puts `Pixbot.exe` in `%LOCALAPPDATA%\Programs\Pixbot` and adds a desktop and Start-menu shortcut. The Linux AppImage adds an app-menu entry (`~/.local/share/applications/pixbot.desktop` and its icon). That's all. |
 | **Startup** | Only if you tick *Start Pixbot when Windows starts / you log in* (in the installer or the app): one entry under `HKEY_CURRENT_USER\...\Run` on Windows, or one file `~/.config/autostart/pixbot.desktop` on Linux. Unticking it (or uninstalling on Windows) removes it. |
-| **The downloads** | `Pixbot-Installer.exe`, `Pixbot.exe` and `Pixbot-x86_64.AppImage` are built automatically by GitHub Actions from this exact source code (see [`.github/workflows/build.yml`](.github/workflows/build.yml)), and each release lists their SHA256 checksums. You can also build them yourself with [`build.ps1`](build.ps1) (Windows) or [`linux/build_appimage.sh`](linux/build_appimage.sh) (Linux). |
+| **The downloads** | `Pixbot-Installer.exe`, `Pixbot.exe` and `Pixbot-Linux.AppImage` are built automatically by GitHub Actions from this exact source code (see [`.github/workflows/build.yml`](.github/workflows/build.yml)), and each release lists their SHA256 checksums. You can also build them yourself with [`build.ps1`](build.ps1) (Windows) or [`linux/build_appimage.sh`](linux/build_appimage.sh) (Linux). |
 
 ## What every file is
 
@@ -127,7 +127,7 @@ python3 -m pip install -r requirements.txt pyinstaller
 bash linux/build_appimage.sh
 ```
 
-The result is `dist/Pixbot-x86_64.AppImage`. It includes the free DejaVu fonts for his speech bubbles.
+The result is `dist/Pixbot-Linux.AppImage`. It includes the free DejaVu fonts for his speech bubbles.
 
 ## Support
 

@@ -1,7 +1,7 @@
 # Builds every Pixbot download from this exact source code on GitHub's own servers,
 # so anyone can see how they were made:
 #   Windows: Pixbot-Installer.exe + portable Pixbot.exe
-#   Linux:   Pixbot-x86_64.AppImage (also started on a virtual screen to check it works)
+#   Linux:   Pixbot-Linux.AppImage (also started on a virtual screen to check it works)
 #  - every push: builds them and keeps them as a downloadable artifact
 #  - pushing a tag like v1.2.0: also creates a Release with all of them attached
 name: Build Pixbot
@@ -66,15 +66,15 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r requirements.txt pyinstaller
 
-      - name: Build Pixbot-x86_64.AppImage
+      - name: Build Pixbot-Linux.AppImage
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then export PIXBOT_VERSION="${GITHUB_REF_NAME#v}"; fi
           bash linux/build_appimage.sh
-          test -f dist/Pixbot-x86_64.AppImage
+          test -f dist/Pixbot-Linux.AppImage
 
       - name: Run it on a virtual screen
         run: |
-          chmod +x dist/Pixbot-x86_64.AppImage
+          chmod +x dist/Pixbot-Linux.AppImage
           xvfb-run -a -s "-screen 0 1600x900x24" bash linux/smoke_test.sh
 
       - uses: actions/upload-artifact@v4
@@ -82,7 +82,7 @@ jobs:
         with:
           name: Pixbot-linux
           path: |
-            dist/Pixbot-x86_64.AppImage
+            dist/Pixbot-Linux.AppImage
             build/smoke/
 
   release:
@@ -97,8 +97,8 @@ jobs:
         run: |
           mkdir out
           cp dl/Pixbot-windows/Pixbot-Installer.exe dl/Pixbot-windows/Pixbot.exe \
-             dl/Pixbot-linux/Pixbot-x86_64.AppImage out/
-          cd out && sha256sum Pixbot-Installer.exe Pixbot.exe Pixbot-x86_64.AppImage | tee SHA256.txt
+             dl/Pixbot-linux/Pixbot-Linux.AppImage out/
+          cd out && sha256sum Pixbot-Installer.exe Pixbot.exe Pixbot-Linux.AppImage | tee SHA256.txt
 
       - name: Create release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
@@ -106,5 +106,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ github.ref_name }}" out/Pixbot-Installer.exe out/Pixbot.exe \
-            out/Pixbot-x86_64.AppImage out/SHA256.txt --repo "${{ github.repository }}" \
+            out/Pixbot-Linux.AppImage out/SHA256.txt --repo "${{ github.repository }}" \
             --title "Pixbot ${{ github.ref_name }}" --generate-notes

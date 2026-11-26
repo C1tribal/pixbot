@@ -6,7 +6,7 @@ set -u
 cd "$(dirname "$0")/.."
 export APPIMAGE_EXTRACT_AND_RUN=1
 export HOME="$(mktemp -d)"
-APP="$PWD/dist/Pixbot-x86_64.AppImage"
+APP="$PWD/dist/Pixbot-Linux.AppImage"
 mkdir -p build/smoke
 xsetroot -solid "#3CA05A"
 openbox >/dev/null 2>&1 &

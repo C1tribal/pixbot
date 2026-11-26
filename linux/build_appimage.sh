@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds dist/Pixbot-x86_64.AppImage from this source (run on Linux, e.g. Ubuntu 22.04):
+# Builds dist/Pixbot-Linux.AppImage from this source (run on Linux, e.g. Ubuntu 22.04):
 #   sudo apt install python3-tk fonts-dejavu-core      # Tk for the windows, fonts for his words
 #   python3 -m pip install -r requirements.txt pyinstaller
 #   bash linux/build_appimage.sh
@@ -49,6 +49,6 @@ if [ ! -x "$TOOL" ]; then
     https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
   chmod +x "$TOOL"
 fi
-rm -f dist/Pixbot-x86_64.AppImage
-ARCH=x86_64 VERSION="$VERSION" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" --no-appstream "$APPDIR" dist/Pixbot-x86_64.AppImage
-echo "Built: dist/Pixbot-x86_64.AppImage"
+rm -f dist/Pixbot-Linux.AppImage
+ARCH=x86_64 VERSION="$VERSION" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" --no-appstream "$APPDIR" dist/Pixbot-Linux.AppImage
+echo "Built: dist/Pixbot-Linux.AppImage"
