@@ -96,8 +96,9 @@ jobs:
       - name: Checksums
         run: |
           mkdir out
-          cp dl/Pixbot-windows/Pixbot-Installer.exe dl/Pixbot-windows/Pixbot.exe \
-             dl/Pixbot-linux/Pixbot-Linux.AppImage out/
+          for f in Pixbot-Installer.exe Pixbot.exe Pixbot-Linux.AppImage; do
+            cp "$(find dl -name "$f" | head -1)" out/
+          done
           cd out && sha256sum Pixbot-Installer.exe Pixbot.exe Pixbot-Linux.AppImage | tee SHA256.txt
 
       - name: Create release (tags only)
