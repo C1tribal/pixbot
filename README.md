@@ -20,13 +20,26 @@ He walks along your taskbar, hops onto your windows, plays with your cursor, and
 
 ![Pixbot settings app](docs/settings.png)
 
-## Download
+## Download and install
 
-1. Go to the [**Releases**](../../releases) page.
-2. Download `Pixbot.exe`.
-3. Double-click it. Pixbot appears on your taskbar. Right-click him and pick **Settings...** to open the settings app.
+<p align="center"><a href="https://github.com/C1tribal/pixbot/releases/latest/download/PixbotSetup.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20Download-PixbotSetup.exe-2EA44F?style=for-the-badge" alt="Download PixbotSetup.exe"></a></p>
 
-Windows SmartScreen may warn you because the app isn't code-signed (signing certificates cost money). Click **More info → Run anyway**. If you'd rather not, run it from source instead (below). It's the exact same code.
+1. Click the green button above to download **`PixbotSetup.exe`**.
+2. Open it. If Windows says *"Windows protected your PC"*, click **More info → Run anyway**. This appears because the app isn't code-signed (signing certificates cost money), not because something is wrong. Every line of code is in this repository.
+3. Click **Next** through the setup. It installs just for you (no admin password), puts a **Pixbot icon on your desktop** and adds him to the Start menu.
+4. Leave **"Open Pixbot now"** ticked and click **Finish**. Pixbot appears on your taskbar and his app opens.
+
+Next time, just double-click the **Pixbot** icon on your desktop.
+
+**Uninstall:** Windows **Settings → Apps → Installed apps → Pixbot → Uninstall**. This also removes his settings and the start-with-Windows entry.
+
+<details>
+<summary>No installer? Use the portable version</summary>
+
+Download [`Pixbot.exe`](https://github.com/C1tribal/pixbot/releases/latest/download/Pixbot.exe), put it in any folder and double-click it. Nothing gets installed. To remove it, delete the file and the `%APPDATA%\Pixbot` folder.
+</details>
+
+> Downloaded a `pixbot-main.zip` full of `.py` files? That's the source code (from the green **Code** button), not the app. Use the download button above instead.
 
 ## Run from source (no .exe needed)
 
@@ -36,8 +49,8 @@ You need [Python 3.10+](https://www.python.org/downloads/) on Windows.
 git clone https://github.com/c1tribal/pixbot.git
 cd pixbot
 python -m pip install -r requirements.txt
-pythonw pixbot.pyw              # starts Pixbot
-pythonw pixbot.pyw --settings   # opens the settings app
+pythonw pixbot.pyw              # opens the Pixbot app and starts Pixbot
+pythonw pixbot.pyw --pet        # starts only Pixbot, no window
 ```
 
 ## Privacy and safety: what Pixbot does on your PC
@@ -49,17 +62,15 @@ Everything is in this repository and you can read every line. In short:
 | **Internet** | Pixbot never connects to the internet. The only time anything opens a web page is when *you* click a button on the Support page. |
 | **Screen** | Every half second he takes a screenshot of the screen he's on, to find edges to stand on. It stays **in memory only**, is never saved to disk and never leaves your PC. You can turn this off: Settings → General → *Let him look at the screen*. |
 | **Keyboard and mouse** | He only checks *when* you last used the mouse or keyboard and roughly how fast you type (to type along with you). He never records which keys you press, apart from noticing Backspace and Caps Lock for two small reactions. |
-| **Files** | He writes only his own settings to `%APPDATA%\Pixbot`. Nothing else. |
-| **Startup** | Only if you tick *Start Pixbot when Windows starts*, he adds one entry under `HKEY_CURRENT_USER\...\Run`. Unticking it removes it. |
-| **The .exe** | It's built automatically by GitHub Actions from this exact source code (see [`.github/workflows/build.yml`](.github/workflows/build.yml)). You can also build it yourself with [`build.ps1`](build.ps1). |
-
-**Uninstall:** quit Pixbot (right-click → Quit), untick *Start Pixbot when Windows starts* if you ticked it, delete `Pixbot.exe`, and delete the `%APPDATA%\Pixbot` folder.
+| **Files** | Pixbot writes only his own settings to `%APPDATA%\Pixbot`. The installer puts `Pixbot.exe` in `%LOCALAPPDATA%\Programs\Pixbot` and adds a desktop and Start-menu shortcut. That's all. |
+| **Startup** | Only if you tick *Start Pixbot when Windows starts* (in the installer or the app), one entry is added under `HKEY_CURRENT_USER\...\Run`. Unticking it or uninstalling removes it. |
+| **The downloads** | `PixbotSetup.exe` and `Pixbot.exe` are built automatically by GitHub Actions from this exact source code (see [`.github/workflows/build.yml`](.github/workflows/build.yml)), and each release lists their SHA256 checksums. You can also build them yourself with [`build.ps1`](build.ps1). |
 
 ## What every file is
 
 | File | What's in it |
 |---|---|
-| `pixbot.pyw` | The starting point. Runs Pixbot, or the settings app with `--settings`. |
+| `pixbot.pyw` | The starting point. Opens the Pixbot app (which starts Pixbot), or just Pixbot with `--pet`. |
 | `pixbot_pet.pyw` | Pixbot himself: movement, physics, deciding what to do next, reacting to you, screens and windows. |
 | `pixbot_acts.py` | How he looks and all his animations: poses, props and effects. |
 | `pixbot_movies.py` | The movie-style scenes and their caption lines. |
@@ -71,7 +82,8 @@ Everything is in this repository and you can read every line. In short:
 | `pixbot_common.py` | Sizes and colours shared by everything. |
 | `pixbot_paint.py` | A tiny drawing helper used by the settings app previews and flying effects. |
 | `pixbot_links.json` | The links on the Support page. |
-| `build.ps1` | Builds `Pixbot.exe` yourself with PyInstaller. |
+| `build.ps1` | Builds `Pixbot.exe` with PyInstaller, and `PixbotSetup.exe` if Inno Setup is installed. |
+| `installer/pixbot.iss` | The installer recipe (Inno Setup): where it installs, the shortcuts, the uninstaller. |
 | `requirements.txt` | The 4 Python packages Pixbot needs: `numpy`, `pillow`, `comtypes`, `pycaw`. |
 
 ## Build the .exe yourself
@@ -81,7 +93,7 @@ python -m pip install -r requirements.txt pyinstaller
 .\build.ps1
 ```
 
-The result is `dist\Pixbot.exe`.
+The result is `dist\Pixbot.exe`, plus `dist\PixbotSetup.exe` if you have [Inno Setup 6](https://jrsoftware.org/isinfo.php) installed.
 
 ## Support
 

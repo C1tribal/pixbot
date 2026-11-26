@@ -995,4 +995,16 @@ class App:
 
 
 if __name__ == "__main__":
+    # only one Pixbot app window: opening it again just brings the existing one forward
+    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\PixbotSettingsWindow")
+    if ctypes.windll.kernel32.GetLastError() == 183:
+        _h = ctypes.windll.user32.FindWindowW(None, "Pixbot")
+        if _h:
+            ctypes.windll.user32.ShowWindow(_h, 9)          # restore if minimised
+            ctypes.windll.user32.SetForegroundWindow(_h)
+        if not pet_pid():
+            start_pet()
+        sys.exit(0)
+    if not pet_pid():                                       # opening Pixbot = Pixbot appears
+        start_pet()
     App().root.mainloop()

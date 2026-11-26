@@ -36,9 +36,11 @@ def links_path():
 
 
 def launch_cmd(settings=False):
-    """Command line that starts Pixbot (or his settings window) - works from source and as .exe."""
+    """Command line that starts Pixbot on the desktop (settings=False, no window)
+    or opens the Pixbot app (settings=True) - works from source and as .exe."""
+    flag = ["--settings"] if settings else ["--pet"]
     if FROZEN:
-        return [sys.executable] + (["--settings"] if settings else [])
+        return [sys.executable] + flag
     pyw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
     exe = pyw if os.path.exists(pyw) else sys.executable
-    return [exe, os.path.join(RES_DIR, "pixbot.pyw")] + (["--settings"] if settings else [])
+    return [exe, os.path.join(RES_DIR, "pixbot.pyw")] + flag

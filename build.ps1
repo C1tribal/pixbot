@@ -24,3 +24,15 @@ $ErrorActionPreference = "Continue"      # PyInstaller logs to stderr; judge by 
 python -m PyInstaller @pyiArgs pixbot.pyw 2>&1 | ForEach-Object { "$_" }
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)" }
 Write-Host "Built: $PSScriptRoot\dist\Pixbot.exe"
+
+# installer (needs the free Inno Setup 6: https://jrsoftware.org/isinfo.php)
+$version = if ($env:PIXBOT_VERSION) { $env:PIXBOT_VERSION } else { "1.1.0" }
+$iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+          "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($iscc) {
+    & $iscc "/DAppVersion=$version" "installer\pixbot.iss" 2>&1 | ForEach-Object { "$_" }
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)" }
+    Write-Host "Built: $PSScriptRoot\dist\PixbotSetup.exe"
+} else {
+    Write-Host "Inno Setup not found - skipped PixbotSetup.exe (Pixbot.exe is still built)."
+}
