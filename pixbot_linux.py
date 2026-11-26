@@ -123,10 +123,16 @@ class ShapedCanvas:
 
     def __init__(self, win, width, height, key):
         import tkinter as tk
-        from PIL import ImageTk
         self.win, self.w, self.h = win, int(width), int(height)
         self.real = tk.Canvas(win, width=self.w, height=self.h, bg=key, highlightthickness=0, bd=0)
-        self.photo = ImageTk.PhotoImage("RGBA", (self.w, self.h))
+        try:
+            from PIL import ImageTk
+            self.photo = ImageTk.PhotoImage("RGBA", (self.w, self.h))
+        except Exception as e:
+            import sys
+            print(f"pixbot: no ImageTk ({e!r}), using PNG frames", file=sys.stderr)
+            self._png = True
+            self.photo = tk.PhotoImage(width=self.w, height=self.h)
         self.real.create_image(0, 0, anchor="nw", image=self.photo)
         self.ops = []
         self._job = None
@@ -320,9 +326,30 @@ class ShapedCanvas:
                     dr.pieslice(box, a0, a1, fill=fill, outline=outline, width=lw)
             except Exception:
                 pass
-        self.photo.paste(img)
+        self._show(img)
         self._mask = img.getchannel("A")
         self._reshape()
+
+    def _show(self, img):
+        """Put the painted frame on screen. Pillow's fast path first; if that isn't
+        available, hand Tk the frame as a PNG (Tk 8.6 reads PNG itself)."""
+        if not getattr(self, "_png", False):
+            try:
+                self.photo.paste(img)
+                return
+            except Exception as e:
+                import sys
+                print(f"pixbot: ImageTk paste failed ({e!r}), using PNG frames", file=sys.stderr)
+                self._png = True
+                import tkinter as tk
+                self.photo = tk.PhotoImage(width=self.w, height=self.h)
+                self.real.delete("all")
+                self.real.create_image(0, 0, anchor="nw", image=self.photo)
+        import base64
+        import io
+        buf = io.BytesIO()
+        img.save(buf, "PNG", compress_level=0)
+        self.photo.configure(data=base64.b64encode(buf.getvalue()), format="png")
 
     def _reshape(self, force=False):
         mask = getattr(self, "_mask", None)

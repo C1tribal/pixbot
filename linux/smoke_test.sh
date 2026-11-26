@@ -30,8 +30,11 @@ pkill -f "Pixbot" 2>/dev/null; sleep 1
 FAIL=0
 for f in build/smoke/pet.log build/smoke/app.log; do
   if grep -q "Traceback" "$f"; then
-    echo "::error::Python error in $f"; cat "$f"; FAIL=1
+    # show the error itself as an annotation (newlines encoded as %0A)
+    msg="$(grep -A 25 -m 1 "Traceback" "$f" | head -40 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+    echo "::error title=Python error in $f::$msg"; cat "$f"; FAIL=1
   fi
 done
+grep -h "^pixbot:" build/smoke/*.log | sort -u | while read -r l; do echo "::notice::$l"; done
 [ $R1 -eq 0 ] && [ $R2 -eq 0 ] || FAIL=1
 exit $FAIL
