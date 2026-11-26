@@ -22,9 +22,9 @@ He walks along your taskbar, hops onto your windows, plays with your cursor, and
 
 ## Download and install
 
-<p align="center"><a href="https://github.com/C1tribal/pixbot/releases/latest/download/PixbotSetup.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20Download-PixbotSetup.exe-2EA44F?style=for-the-badge" alt="Download PixbotSetup.exe"></a></p>
+<p align="center"><a href="https://github.com/C1tribal/pixbot/releases/latest/download/Pixbot-Installer.exe"><img src="https://img.shields.io/badge/%E2%AC%87%20Download-Pixbot--Installer.exe-2EA44F?style=for-the-badge" alt="Download Pixbot-Installer.exe"></a></p>
 
-1. Click the green button above to download **`PixbotSetup.exe`**.
+1. Click the green button above to download **`Pixbot-Installer.exe`**.
 2. Open it. If Windows says *"Windows protected your PC"*, click **More info → Run anyway**. This appears because the app isn't code-signed (signing certificates cost money), not because something is wrong. Every line of code is in this repository.
 3. Click **Next** through the setup. It installs just for you (no admin password), puts a **Pixbot icon on your desktop** and adds him to the Start menu.
 4. Leave **"Open Pixbot now"** ticked and click **Finish**. Pixbot appears on your taskbar and his app opens.
@@ -64,7 +64,7 @@ Everything is in this repository and you can read every line. In short:
 | **Keyboard and mouse** | He only checks *when* you last used the mouse or keyboard and roughly how fast you type (to type along with you). He never records which keys you press, apart from noticing Backspace and Caps Lock for two small reactions. |
 | **Files** | Pixbot writes only his own settings to `%APPDATA%\Pixbot`. The installer puts `Pixbot.exe` in `%LOCALAPPDATA%\Programs\Pixbot` and adds a desktop and Start-menu shortcut. That's all. |
 | **Startup** | Only if you tick *Start Pixbot when Windows starts* (in the installer or the app), one entry is added under `HKEY_CURRENT_USER\...\Run`. Unticking it or uninstalling removes it. |
-| **The downloads** | `PixbotSetup.exe` and `Pixbot.exe` are built automatically by GitHub Actions from this exact source code (see [`.github/workflows/build.yml`](.github/workflows/build.yml)), and each release lists their SHA256 checksums. You can also build them yourself with [`build.ps1`](build.ps1). |
+| **The downloads** | `Pixbot-Installer.exe` and `Pixbot.exe` are built automatically by GitHub Actions from this exact source code (see [`.github/workflows/build.yml`](.github/workflows/build.yml)), and each release lists their SHA256 checksums. You can also build them yourself with [`build.ps1`](build.ps1). |
 
 ## What every file is
 
@@ -82,7 +82,7 @@ Everything is in this repository and you can read every line. In short:
 | `pixbot_common.py` | Sizes and colours shared by everything. |
 | `pixbot_paint.py` | A tiny drawing helper used by the settings app previews and flying effects. |
 | `pixbot_links.json` | The links on the Support page. |
-| `build.ps1` | Builds `Pixbot.exe` with PyInstaller, and `PixbotSetup.exe` if Inno Setup is installed. |
+| `build.ps1` | Builds `Pixbot.exe` with PyInstaller, and `Pixbot-Installer.exe` if Inno Setup is installed. |
 | `installer/pixbot.iss` | The installer recipe (Inno Setup): where it installs, the shortcuts, the uninstaller. |
 | `requirements.txt` | The 4 Python packages Pixbot needs: `numpy`, `pillow`, `comtypes`, `pycaw`. |
 
@@ -93,7 +93,7 @@ python -m pip install -r requirements.txt pyinstaller
 .\build.ps1
 ```
 
-The result is `dist\Pixbot.exe`, plus `dist\PixbotSetup.exe` if you have [Inno Setup 6](https://jrsoftware.org/isinfo.php) installed.
+The result is `dist\Pixbot.exe`, plus `dist\Pixbot-Installer.exe` if you have [Inno Setup 6](https://jrsoftware.org/isinfo.php) installed.
 
 ## Support
 

@@ -32,7 +32,7 @@ $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\I
 if ($iscc) {
     & $iscc "/DAppVersion=$version" "installer\pixbot.iss" 2>&1 | ForEach-Object { "$_" }
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)" }
-    Write-Host "Built: $PSScriptRoot\dist\PixbotSetup.exe"
+    Write-Host "Built: $PSScriptRoot\dist\Pixbot-Installer.exe"
 } else {
-    Write-Host "Inno Setup not found - skipped PixbotSetup.exe (Pixbot.exe is still built)."
+    Write-Host "Inno Setup not found - skipped Pixbot-Installer.exe (Pixbot.exe is still built)."
 }

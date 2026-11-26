@@ -1,4 +1,4 @@
-# Builds Pixbot.exe and the PixbotSetup.exe installer from this exact source code on
+# Builds Pixbot.exe and the Pixbot-Installer.exe installer from this exact source code on
 # GitHub's own servers, so anyone can see how the downloads were made.
 #  - every push: builds both and keeps them as a downloadable artifact
 #  - pushing a tag like v1.1.0: also creates a Release with both files attached
@@ -31,17 +31,17 @@ jobs:
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
 
-      - name: Build Pixbot.exe and PixbotSetup.exe
+      - name: Build Pixbot.exe and Pixbot-Installer.exe
         shell: pwsh
         run: |
           if ("${{ github.ref }}" -like "refs/tags/v*") { $env:PIXBOT_VERSION = "${{ github.ref_name }}".TrimStart("v") }
           ./build.ps1
-          if (-not (Test-Path dist/PixbotSetup.exe)) { throw "installer was not built" }
+          if (-not (Test-Path dist/Pixbot-Installer.exe)) { throw "installer was not built" }
 
       - name: Checksums
         shell: pwsh
         run: |
-          $lines = foreach ($f in "Pixbot.exe", "PixbotSetup.exe") {
+          $lines = foreach ($f in "Pixbot.exe", "Pixbot-Installer.exe") {
             "$((Get-FileHash dist/$f -Algorithm SHA256).Hash)  $f"
           }
           $lines | Out-File dist/SHA256.txt -Encoding ascii
@@ -51,7 +51,7 @@ jobs:
         with:
           name: Pixbot
           path: |
-            dist/PixbotSetup.exe
+            dist/Pixbot-Installer.exe
             dist/Pixbot.exe
             dist/SHA256.txt
 
@@ -60,4 +60,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" dist/PixbotSetup.exe dist/Pixbot.exe dist/SHA256.txt --title "Pixbot ${{ github.ref_name }}" --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/Pixbot-Installer.exe dist/Pixbot.exe dist/SHA256.txt --title "Pixbot ${{ github.ref_name }}" --generate-notes

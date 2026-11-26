@@ -1,4 +1,4 @@
-; Pixbot installer (Inno Setup 6) - builds dist\PixbotSetup.exe from dist\Pixbot.exe
+; Pixbot installer (Inno Setup 6) - builds dist\Pixbot-Installer.exe from dist\Pixbot.exe
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=1.1.0 installer\pixbot.iss
 ; Installs for the current user only (no admin rights needed).
 
@@ -20,7 +20,7 @@ DefaultGroupName=Pixbot
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseFilename=PixbotSetup
+OutputBaseFilename=Pixbot-Installer
 SetupIconFile=..\pixbot.ico
 UninstallDisplayIcon={app}\Pixbot.exe
 UninstallDisplayName=Pixbot
