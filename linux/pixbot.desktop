@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Pixbot
+Comment=A tiny pixel robot that lives on your desktop
+Exec=Pixbot
+Icon=pixbot
+Terminal=false
+Categories=Utility;
+StartupWMClass=Pixbot

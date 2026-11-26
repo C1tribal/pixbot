@@ -1,28 +1,22 @@
 """Pixbot - control app.
 
 Turn every animation on/off, choose how often he does special things, when he's
-around, start him with Windows, preview any animation, start/stop him.
+around, start him with your computer, preview any animation, start/stop him.
 Changes are saved instantly and Pixbot picks them up within a second.
 """
-import ctypes
 import json
 import os
 import subprocess
 import sys
 import time
 import tkinter as tk
-import winreg
 from tkinter import ttk
-
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)
-except Exception:
-    pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pixbot_catalog as cat  # noqa: E402
 
 import pixbot_paths  # noqa: E402
+import pixbot_os as osl  # noqa: E402  (also makes the window sharp on high-DPI Windows screens)
 ICON = pixbot_paths.ICON_FILE
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "Pixbot"
@@ -37,19 +31,16 @@ def pet_pid():
         pid = int(open(cat.PID_FILE).read().strip())
     except Exception:
         return None
-    k32 = ctypes.windll.kernel32
-    h = k32.OpenProcess(0x1000, False, pid)
-    if not h:
-        return None
-    code = ctypes.c_ulong()
-    k32.GetExitCodeProcess(h, ctypes.byref(code))
-    k32.CloseHandle(h)
-    return pid if code.value == 259 else None
+    return pid if osl.pid_running(pid) else None
 
 
 def start_pet():
     if not pet_pid():
-        subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR, creationflags=0x00000008)
+        if osl.IS_WIN:
+            subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR, creationflags=0x00000008)
+        else:
+            subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR, start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def send(cmd):
@@ -67,11 +58,27 @@ def stop_pet():
         time.sleep(0.1)
         if not pet_pid():
             return
-    subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
+    if osl.IS_WIN:
+        subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
+    else:
+        import signal
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
 
 
-# ---------------- start with Windows ----------------
+# ---------------- start with Windows / Linux ----------------
+# Windows: one value in the registry (HKEY_CURRENT_USER, ...CurrentVersion Run)
+# Linux:   one file, ~/.config/autostart/pixbot.desktop
+AUTOSTART = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
+                         "autostart", "pixbot.desktop")
+
+
 def startup_enabled():
+    if not osl.IS_WIN:
+        return os.path.exists(AUTOSTART)
+    import winreg
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
             winreg.QueryValueEx(k, RUN_NAME)
@@ -81,6 +88,18 @@ def startup_enabled():
 
 
 def set_startup(on):
+    if not osl.IS_WIN:
+        if on:
+            os.makedirs(os.path.dirname(AUTOSTART), exist_ok=True)
+            cmd = " ".join('"' + a + '"' for a in pixbot_paths.launch_cmd())
+            with open(AUTOSTART, "w", encoding="utf-8") as f:
+                f.write("[Desktop Entry]\nType=Application\nName=Pixbot\n"
+                        "Comment=Your little desktop robot\n"
+                        f"Exec={cmd}\nIcon=pixbot\nX-GNOME-Autostart-enabled=true\n")
+        elif os.path.exists(AUTOSTART):
+            os.remove(AUTOSTART)
+        return
+    import winreg
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
         if on:
             winreg.SetValueEx(k, RUN_NAME, 0, winreg.REG_SZ,
@@ -92,22 +111,78 @@ def set_startup(on):
                 pass
 
 
+# ---------------- Linux app menu entry (AppImage) ----------------
+# The AppImage is a single file, so Pixbot adds itself to your app menu the first time
+# it runs (two small files below). Untick "Show Pixbot in my app menu" to remove them.
+_SHARE = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+MENU_FILE = os.path.join(_SHARE, "applications", "pixbot.desktop")
+MENU_ICON = os.path.join(_SHARE, "icons", "hicolor", "256x256", "apps", "pixbot.png")
+MENU_OFFERED = os.path.join(pixbot_paths.DATA_DIR, "menu_entry_added")
+
+
+def menu_entry_enabled():
+    return os.path.exists(MENU_FILE)
+
+
+def set_menu_entry(on):
+    appimage = os.environ.get("APPIMAGE")
+    if not on:
+        for f in (MENU_FILE, MENU_ICON):
+            if os.path.exists(f):
+                os.remove(f)
+        return
+    if not appimage:
+        return
+    import shutil
+    os.makedirs(os.path.dirname(MENU_FILE), exist_ok=True)
+    os.makedirs(os.path.dirname(MENU_ICON), exist_ok=True)
+    if os.path.exists(pixbot_paths.ICON_PNG):
+        shutil.copyfile(pixbot_paths.ICON_PNG, MENU_ICON)
+    with open(MENU_FILE, "w", encoding="utf-8") as f:
+        f.write("[Desktop Entry]\nType=Application\nName=Pixbot\n"
+                "Comment=A tiny pixel robot that lives on your desktop\n"
+                f'Exec="{appimage}"\nIcon=pixbot\nTerminal=false\n'
+                "Categories=Utility;\nStartupWMClass=Pixbot\n")
+
+
+def linux_menu_setup():
+    """First AppImage run: add the menu entry. Later runs: keep its path up to date
+    (in case you moved the .AppImage file)."""
+    if osl.IS_WIN or not os.environ.get("APPIMAGE"):
+        return
+    try:
+        if not os.path.exists(MENU_OFFERED):
+            open(MENU_OFFERED, "w").close()
+            set_menu_entry(True)
+        elif menu_entry_enabled():
+            set_menu_entry(True)
+        if startup_enabled():
+            set_startup(True)
+    except Exception:
+        pass
+
+
 # ---------------- UI ----------------
 class App:
     def __init__(self):
         self.s = cat.load()
-        self.root = tk.Tk()
+        self.root = tk.Tk(className="Pixbot")
         self.root.title("Pixbot")
         self.root.configure(bg=BG)
         self.root.geometry("1060x800")
         self.root.minsize(780, 480)
         self.scrollers = []
         self.root.bind_all("<MouseWheel>", self.on_wheel)
-        if os.path.exists(ICON):
-            try:
+        self.root.bind_all("<Button-4>", self.on_wheel)          # Linux wheel up / down
+        self.root.bind_all("<Button-5>", self.on_wheel)
+        try:
+            if osl.IS_WIN and os.path.exists(ICON):
                 self.root.iconbitmap(ICON)
-            except Exception:
-                pass
+            elif os.path.exists(pixbot_paths.ICON_PNG):
+                self._icon = tk.PhotoImage(file=pixbot_paths.ICON_PNG)
+                self.root.iconphoto(True, self._icon)
+        except Exception:
+            pass
         self.save_job = None
         self.style()
         self.build()
@@ -246,8 +321,12 @@ class App:
         while w is not None:
             if w in self.scrollers:
                 bbox = w.bbox("all")
+                if getattr(e, "num", None) in (4, 5):
+                    step = -1 if e.num == 4 else 1
+                else:
+                    step = int(-e.delta / 120)
                 if bbox and bbox[3] - bbox[1] > w.winfo_height():   # only if there's more to see
-                    w.yview_scroll(int(-e.delta / 120) * 2, "units")
+                    w.yview_scroll(step * 2, "units")
                 return
             w = w.master
 
@@ -347,7 +426,10 @@ class App:
         if not os.path.exists(self.LINKS_FILE):          # make your own editable copy first
             import shutil
             shutil.copyfile(pixbot_paths.DEFAULT_LINKS_FILE, self.LINKS_FILE)
-        os.startfile(self.LINKS_FILE)
+        if osl.IS_WIN:
+            os.startfile(self.LINKS_FILE)
+        else:
+            subprocess.Popen(["xdg-open", self.LINKS_FILE])
 
     def on_fav_boost(self, v, save=True):
         n = max(1, int(round(v.get())))
@@ -504,8 +586,12 @@ class App:
 
         self.label(left, "General", 12, bold=True).pack(pady=(14, 6), **pad)
         self.startup_var = tk.BooleanVar(value=startup_enabled())
-        ttk.Checkbutton(left, text="Start Pixbot when Windows starts", variable=self.startup_var,
+        ttk.Checkbutton(left, text="Start Pixbot when " + ("Windows starts" if osl.IS_WIN else "you log in"), variable=self.startup_var,
                         command=self.on_startup).pack(pady=2, **pad)
+        if not osl.IS_WIN and os.environ.get("APPIMAGE"):
+            self.menu_var = tk.BooleanVar(value=menu_entry_enabled())
+            ttk.Checkbutton(left, text="Show Pixbot in my app menu", variable=self.menu_var,
+                            command=lambda: set_menu_entry(self.menu_var.get())).pack(pady=2, **pad)
         self.vision_var = tk.BooleanVar(value=self.s["screen_reading"])
         ttk.Checkbutton(left, text="Let him look at the screen", variable=self.vision_var,
                         command=self.on_vision).pack(pady=2, **pad)
@@ -996,15 +1082,12 @@ class App:
 
 if __name__ == "__main__":
     # only one Pixbot app window: opening it again just brings the existing one forward
-    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\PixbotSettingsWindow")
-    if ctypes.windll.kernel32.GetLastError() == 183:
-        _h = ctypes.windll.user32.FindWindowW(None, "Pixbot")
-        if _h:
-            ctypes.windll.user32.ShowWindow(_h, 9)          # restore if minimised
-            ctypes.windll.user32.SetForegroundWindow(_h)
+    if not osl.single_instance("PixbotSettingsWindow"):
+        osl.focus_existing("Pixbot")
         if not pet_pid():
             start_pet()
         sys.exit(0)
+    linux_menu_setup()
     if not pet_pid():                                       # opening Pixbot = Pixbot appears
         start_pet()
     App().root.mainloop()

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Starts Pixbot from inside the AppImage (opens the app; "--pet" starts only Pixbot)
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/lib/pixbot/Pixbot" "$@"

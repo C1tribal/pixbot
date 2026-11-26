@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $modules = "pixbot_acts", "pixbot_catalog", "pixbot_common", "pixbot_movies", "pixbot_outfits",
-           "pixbot_paint", "pixbot_paths", "pixbot_vision"
+           "pixbot_paint", "pixbot_paths", "pixbot_vision", "pixbot_os", "pixbot_win"
 # pixbot_pet.pyw / pixbot_app.pyw are started as scripts, so list everything they import
 $hidden = $modules + @("numpy", "PIL", "PIL.Image", "PIL.ImageGrab", "PIL.ImageDraw",
                        "comtypes", "comtypes.client", "comtypes.stream", "pycaw", "pycaw.pycaw",
@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)" }
 Write-Host "Built: $PSScriptRoot\dist\Pixbot.exe"
 
 # installer (needs the free Inno Setup 6: https://jrsoftware.org/isinfo.php)
-$version = if ($env:PIXBOT_VERSION) { $env:PIXBOT_VERSION } else { "1.1.0" }
+$version = if ($env:PIXBOT_VERSION) { $env:PIXBOT_VERSION } else { "1.2.0" }
 $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
           "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($iscc) {

@@ -1,4 +1,5 @@
 numpy
 pillow
-comtypes
-pycaw
+comtypes; sys_platform == "win32"
+pycaw; sys_platform == "win32"
+python-xlib; sys_platform == "linux"

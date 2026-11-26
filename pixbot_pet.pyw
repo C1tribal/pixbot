@@ -1,4 +1,4 @@
-"""Pixbot desktop pet - a little robot critter living on your Windows screens.
+"""Pixbot desktop pet - a little robot critter living on your Windows or Linux screens.
 
 Run:  pythonw pixbot.pyw              (needs: pip install -r requirements.txt)
 
@@ -16,8 +16,6 @@ Mouse: drag him, throw him (he bounces / wall-slides / wall-jumps).
 Click = jump.  Right-click = menu with every animation.
 """
 import collections
-import ctypes
-import ctypes.wintypes as wt
 import json
 import math
 import os
@@ -37,138 +35,14 @@ try:
 except Exception:                               # numpy / pillow missing
     pixbot_vision = None
 
-# ====================== Windows helpers ======================
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)
-except Exception:
-    try:
-        ctypes.windll.user32.SetProcessDPIAware()
-    except Exception:
-        pass
-try:
-    ctypes.windll.winmm.timeBeginPeriod(1)
-except Exception:
-    pass
-
-user32 = ctypes.windll.user32
-dwmapi = ctypes.windll.dwmapi
-user32.GetForegroundWindow.restype = wt.HWND
-user32.WindowFromPoint.restype = wt.HWND
-user32.WindowFromPoint.argtypes = [wt.POINT]
-user32.GetAncestor.restype = wt.HWND
-user32.GetAncestor.argtypes = [wt.HWND, wt.UINT]
-
-
-class MONITORINFO(ctypes.Structure):
-    _fields_ = [("cbSize", wt.DWORD), ("rcMonitor", wt.RECT),
-                ("rcWork", wt.RECT), ("dwFlags", wt.DWORD)]
-
-
-class LASTINPUTINFO(ctypes.Structure):
-    _fields_ = [("cbSize", wt.UINT), ("dwTime", wt.DWORD)]
-
-
-def _t(r):
-    return (r.left, r.top, r.right, r.bottom)
-
-
-def get_monitors():
-    out = []
-    proc = ctypes.WINFUNCTYPE(ctypes.c_int, wt.HMONITOR, wt.HDC,
-                              ctypes.POINTER(wt.RECT), wt.LPARAM)
-
-    def cb(hmon, hdc, rect, lp):
-        mi = MONITORINFO()
-        mi.cbSize = ctypes.sizeof(MONITORINFO)
-        if user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
-            out.append((_t(mi.rcMonitor), _t(mi.rcWork)))
-        return 1
-
-    user32.EnumDisplayMonitors(None, None, proc(cb), 0)
-    out.sort(key=lambda m: (m[0][0], m[0][1]))
-    return out
-
-
-IGNORED_CLASSES = {"Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd",
-                   "Windows.UI.Core.CoreWindow", "TopLevelWindowForOverflowXamlIsland"}
-
-
-def window_rect(hwnd):
-    r = wt.RECT()
-    if not user32.GetWindowRect(hwnd, ctypes.byref(r)):
-        return None
-    return _t(r)
-
-
-def frame_rect(hwnd):
-    r = wt.RECT()
-    if dwmapi.DwmGetWindowAttribute(wt.HWND(hwnd), 9, ctypes.byref(r), ctypes.sizeof(r)) == 0:
-        return _t(r)
-    return window_rect(hwnd)
-
-
-def is_cloaked(hwnd):
-    v = ctypes.c_int(0)
-    dwmapi.DwmGetWindowAttribute(wt.HWND(hwnd), 14, ctypes.byref(v), ctypes.sizeof(v))
-    return v.value != 0
-
-
-def alive(hwnd):
-    return (user32.IsWindow(hwnd) and user32.IsWindowVisible(hwnd)
-            and not user32.IsIconic(hwnd))
+# ====================== Windows / Linux helpers (pixbot_os.py) ======================
+import pixbot_os as osl                                     # noqa: E402
+from pixbot_os import (get_monitors, window_rect, frame_rect, alive, list_windows,  # noqa: E402
+                       root_at, cursor_pos, last_input_tick)
 
 
 def covers(r, m):
     return r[0] <= m[0] and r[1] <= m[1] and r[2] >= m[2] and r[3] >= m[3]
-
-
-def list_windows(my_pid):
-    out = []
-    proc = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
-
-    def cb(h, lp):
-        try:
-            if not h or not user32.IsWindowVisible(h) or user32.IsIconic(h):
-                return True
-            if user32.GetWindowTextLengthW(h) == 0:
-                return True
-            if user32.GetWindowLongW(h, -20) & 0x80:
-                return True
-            pid = wt.DWORD()
-            user32.GetWindowThreadProcessId(h, ctypes.byref(pid))
-            if pid.value == my_pid:
-                return True
-            cls = ctypes.create_unicode_buffer(256)
-            user32.GetClassNameW(h, cls, 256)
-            if cls.value in IGNORED_CLASSES or is_cloaked(h):
-                return True
-            r = frame_rect(h)
-            if r and r[2] - r[0] >= 150 and r[3] - r[1] >= 80:
-                out.append((h, r))
-        except Exception:
-            pass
-        return True
-
-    user32.EnumWindows(proc(cb), 0)
-    return out
-
-
-def root_at(x, y):
-    h = user32.WindowFromPoint(wt.POINT(int(x), int(y)))
-    return user32.GetAncestor(h, 2) if h else None
-
-
-def cursor_pos():
-    p = wt.POINT()
-    user32.GetCursorPos(ctypes.byref(p))
-    return p.x, p.y
-
-
-def last_input_tick():
-    li = LASTINPUTINFO()
-    li.cbSize = ctypes.sizeof(LASTINPUTINFO)
-    user32.GetLastInputInfo(ctypes.byref(li))
-    return li.dwTime
 
 
 # ====================== behaviour tables ======================
@@ -202,12 +76,8 @@ class Portal:
 
     def __init__(self, root):
         self.win = tk.Toplevel(root)
-        self.win.overrideredirect(True)
-        self.win.attributes("-topmost", True)
-        self.win.attributes("-transparentcolor", KEY)
-        self.win.config(bg=KEY)
-        self.cv = tk.Canvas(self.win, width=self.PW * PX, height=self.PH * PX,
-                            bg=KEY, highlightthickness=0, bd=0)
+        osl.make_overlay(self.win, KEY)
+        self.cv = osl.overlay_canvas(self.win, self.PW * PX, self.PH * PX, KEY)
         self.cv.pack()
         self.win.withdraw()
         self.size, self.goal, self.t = 0.0, 0.0, 0.0
@@ -253,12 +123,8 @@ class Sprite:
     def __init__(self, root, wu, hu):
         from pixbot_paint import Painter
         self.win = tk.Toplevel(root)
-        self.win.overrideredirect(True)
-        self.win.attributes("-topmost", True)
-        self.win.attributes("-transparentcolor", KEY)
-        self.win.config(bg=KEY)
-        self.cv = tk.Canvas(self.win, width=wu * PX, height=hu * PX, bg=KEY,
-                            highlightthickness=0, bd=0)
+        osl.make_overlay(self.win, KEY)
+        self.cv = osl.overlay_canvas(self.win, wu * PX, hu * PX, KEY)
         self.cv.pack()
         self.p = Painter(self.cv, PX)
         self.wu, self.hu = wu, hu
@@ -277,12 +143,10 @@ class Sprite:
 
 class Pixbot(Acts):
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.overrideredirect(True)
-        self.root.attributes("-topmost", True)
-        self.root.attributes("-transparentcolor", KEY)
-        self.root.config(bg=KEY)
-        self.cv = tk.Canvas(self.root, width=W, height=H, bg=KEY, highlightthickness=0, bd=0)
+        self.root = tk.Tk(className="Pixbot")
+        self.root.title("Pixbot pet")
+        osl.make_overlay(self.root, KEY)
+        self.cv = osl.overlay_canvas(self.root, W, H, KEY)
         self.cv.pack()
         self.portal = Portal(self.root)
 
@@ -340,7 +204,7 @@ class Pixbot(Acts):
         self.pending_react = None
         self.react_cool = {}
         self.prev_hwnds = None
-        self.clip_seq = user32.GetClipboardSequenceNumber()
+        self.clip_seq = osl.clipboard_seq()
         self.power = None
         self.session_start = 0.0
         self.bs_presses = collections.deque(maxlen=30)
@@ -542,29 +406,26 @@ class Pixbot(Acts):
     def adjacent(self, a, b):
         return a[2] == b[0] or b[2] == a[0]
 
-    NOT_GAMES = {"chrome.exe", "firefox.exe", "msedge.exe", "brave.exe", "opera.exe", "vivaldi.exe",
-                 "arc.exe", "vlc.exe", "mpv.exe", "spotify.exe", "explorer.exe", "powerpnt.exe",
-                 "mpc-hc64.exe", "potplayermini64.exe", "wmplayer.exe", "video.ui.exe",
-                 "applicationframehost.exe", "code.exe", "obs64.exe",
-                 "discord.exe", "teams.exe", "zoom.exe", "netflix.exe", "photos.exe"}
+    NOT_GAMES = {"chrome", "firefox", "msedge", "brave", "opera", "vivaldi", "arc", "vlc", "mpv",
+                 "spotify", "explorer", "powerpnt", "mpc-hc64", "potplayermini64", "wmplayer",
+                 "video.ui", "applicationframehost", "code", "obs64", "obs", "discord", "teams",
+                 "zoom", "netflix", "photos",
+                 # Linux
+                 "chromium", "chromium-browser", "chrome-sandbox", "firefox-bin", "firefox-esr",
+                 "brave-browser", "librewolf", "epiphany", "totem", "celluloid", "smplayer",
+                 "haruna", "mplayer", "kodi.bin", "kodi", "eog", "gwenview", "loupe", "evince",
+                 "okular", "libreoffice", "soffice.bin", "gnome-shell", "plasmashell",
+                 "nautilus", "dolphin", "thunar", "nemo", "electron", "zoom.real", "slack"}
 
     def exe_of(self, hwnd):
-        pid = wt.DWORD()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        k32 = ctypes.windll.kernel32
-        hp = k32.OpenProcess(0x1000, False, pid.value)
-        exe = ""
-        if hp:
-            n = wt.DWORD(300)
-            buf = ctypes.create_unicode_buffer(300)
-            if k32.QueryFullProcessImageNameW(hp, 0, buf, ctypes.byref(n)):
-                exe = os.path.basename(buf.value).lower()
-            k32.CloseHandle(hp)
-        return exe
+        try:
+            return osl.exe_of(hwnd)
+        except Exception:
+            return ""
 
     def update_gaming(self):
         """Is a fullscreen GAME running (not a browser / video player)?"""
-        fg = user32.GetForegroundWindow()
+        fg = osl.foreground_window()
         self.fg_fullscreen = bool(fg) and fg in self.fs_windows
         games = []
         for h in self.fs_windows:
@@ -575,14 +436,10 @@ class Pixbot(Acts):
         self.game_monitors = {self.fs_windows[h] for h in games}
 
     def fullscreen_monitors(self):
-        hwnd = user32.GetForegroundWindow()
+        hwnd = osl.foreground_window()
         if hwnd:
-            pid = wt.DWORD()
-            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            cls = ctypes.create_unicode_buffer(256)
-            user32.GetClassNameW(hwnd, cls, 256)
-            r = window_rect(hwnd)
-            if pid.value != self.my_pid and cls.value not in IGNORED_CLASSES and r:
+            r = osl.fullscreen_candidate(hwnd, self.my_pid)
+            if r:
                 for m, _ in self.monitors:
                     if covers(r, m):
                         self.fs_windows[hwnd] = m
@@ -631,10 +488,6 @@ class Pixbot(Acts):
     def vision_thread(self):
         if pixbot_vision is None:
             return
-        try:
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)
-        except Exception:
-            pass
         while True:
             try:
                 mon = self.mon
@@ -788,6 +641,8 @@ class Pixbot(Acts):
 
     # ---------- text box perching (UI Automation) ----------
     def focus_thread(self):
+        if not osl.IS_WIN:                     # text-box finding uses Windows UI Automation
+            return
         try:
             import comtypes
             import comtypes.client
@@ -819,7 +674,7 @@ class Pixbot(Acts):
         hw = {h: r for h, r in self.windows if (r[2] - r[0]) * (r[3] - r[1]) > 300 * 200}
         if self.prev_hwnds is not None:
             new = [h for h in hw if h not in self.prev_hwnds]
-            gone = [h for h in self.prev_hwnds if h not in hw and not user32.IsWindow(h)]
+            gone = [h for h in self.prev_hwnds if h not in hw and not osl.is_window(h)]
             if new:
                 r = hw[new[0]]
                 self.queue_react("ooh", "newwindow", 20, (r[0] + r[2]) / 2)
@@ -828,17 +683,14 @@ class Pixbot(Acts):
                 self.queue_react("bye", "closewindow", 20, (r[0] + r[2]) / 2)
         self.prev_hwnds = hw
         # clipboard (copy)
-        seq = user32.GetClipboardSequenceNumber()
+        seq = osl.clipboard_seq()
         if seq != self.clip_seq:
             self.clip_seq = seq
             self.queue_react("copied", "clipboard", 25)
         # battery / charger
-        class SPS(ctypes.Structure):
-            _fields_ = [("ac", ctypes.c_byte), ("flag", ctypes.c_byte), ("pct", ctypes.c_byte),
-                        ("saver", ctypes.c_byte), ("life", wt.DWORD), ("full", wt.DWORD)]
-        sps = SPS()
-        if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(sps)) and not (sps.flag & 128):
-            ac, pct = sps.ac == 1, sps.pct & 0xFF
+        pw = osl.power()
+        if pw:
+            ac, pct = pw
             if self.power is not None and ac and not self.power[0]:
                 self.queue_react("charging", "battery", 30)
             elif not ac and pct <= 20:
@@ -864,6 +716,14 @@ class Pixbot(Acts):
 
     def audio_thread(self):
         """Is sound playing right now? (so music/video reactions last until you pause)"""
+        if not osl.IS_WIN:
+            while True:
+                try:
+                    if osl.audio_level() > 0.01:
+                        self.audio_last = self.clock
+                except Exception:
+                    pass
+                time.sleep(0.5)
         try:
             import comtypes
             from ctypes import POINTER, cast
@@ -935,37 +795,28 @@ class Pixbot(Acts):
     def foreground_context(self):
         """What are you doing right now? -> video / browser / files / code / chat / other"""
         try:
-            h = user32.GetForegroundWindow()
+            h = osl.foreground_window()
             if not h:
                 return "other"
-            buf = ctypes.create_unicode_buffer(300)
-            user32.GetWindowTextW(h, buf, 300)
-            title = buf.value.lower()
-            pid = wt.DWORD()
-            user32.GetWindowThreadProcessId(h, ctypes.byref(pid))
-            k32 = ctypes.windll.kernel32
-            hp = k32.OpenProcess(0x1000, False, pid.value)
-            exe = ""
-            if hp:
-                n = wt.DWORD(300)
-                pbuf = ctypes.create_unicode_buffer(300)
-                if k32.QueryFullProcessImageNameW(hp, 0, pbuf, ctypes.byref(n)):
-                    exe = os.path.basename(pbuf.value).lower()
-                k32.CloseHandle(hp)
-            if exe in ("spotify.exe", "applemusic.exe", "itunes.exe") or any(
+            title = osl.window_title(h).lower()
+            exe = self.exe_of(h)
+            if exe in ("spotify", "applemusic", "itunes", "rhythmbox", "lollypop", "amarok",
+                       "elisa", "clementine", "strawberry", "audacious") or any(
                     w in title for w in ("music", "official audio", "official video", "lyrics",
                                          "(audio)", "- topic", "remix", "soundcloud", "playlist")):
                 return "music"
-            if any(w in title for w in ("youtube", "netflix", "twitch", "prime video", "disney+")) \
-                    or exe in ("vlc.exe", "mpv.exe"):
+            if any(w in title for w in ("youtube", "netflix", "twitch", "prime video", "disney+"))                     or exe in ("vlc", "mpv", "totem", "celluloid", "smplayer", "haruna", "mplayer"):
                 return "video"
-            if exe in ("chrome.exe", "firefox.exe", "msedge.exe", "brave.exe", "opera.exe",
-                       "vivaldi.exe", "arc.exe"):
+            if exe in ("chrome", "firefox", "msedge", "brave", "opera", "vivaldi", "arc",
+                       "chromium", "chromium-browser", "firefox-bin", "firefox-esr",
+                       "brave-browser", "librewolf", "epiphany"):
                 return "browser"
-            if exe == "explorer.exe":
+            if exe in ("explorer", "nautilus", "dolphin", "thunar", "nemo", "pcmanfm", "caja"):
                 return "files"
-            if exe in ("code.exe", "devenv.exe", "pycharm64.exe", "idea64.exe", "cursor.exe",
-                       "windowsterminal.exe", "powershell.exe", "cmd.exe", "sublime_text.exe"):
+            if exe in ("code", "devenv", "pycharm64", "idea64", "cursor", "windowsterminal",
+                       "powershell", "cmd", "sublime_text", "gnome-terminal-server", "konsole",
+                       "kitty", "alacritty", "xterm", "wezterm-gui", "tilix", "xfce4-terminal",
+                       "terminator", "ptyxis", "pycharm", "idea", "kate", "gedit", "nvim", "vim"):
                 return "code"
         except Exception:
             pass
@@ -1734,18 +1585,18 @@ class Pixbot(Acts):
         cur = cursor_pos()
         self.cur_move = math.hypot(cur[0] - self.prev_cur[0], cur[1] - self.prev_cur[1])
         tick = last_input_tick()
-        buttons = (user32.GetAsyncKeyState(1) & 0x8000) or (user32.GetAsyncKeyState(2) & 0x8000)
+        buttons = osl.mouse_down()
         if buttons and not self.prev_buttons:                 # you clicked near him (not on him)
             dist = math.hypot(cur[0] - self.x, cur[1] - (self.fy - 4 * PX))
             if 5 * PX < dist < 220:
                 self.want_startle = True
         self.prev_buttons = buttons
-        if user32.GetAsyncKeyState(8) & 1:                    # backspace mashing -> facepalm
+        if osl.backspace_tapped():                            # backspace mashing -> facepalm
             self.bs_presses.append(self.clock)
             if sum(1 for t in self.bs_presses if self.clock - t < 2.5) >= 7:
                 self.bs_presses.clear()
                 self.queue_react("facepalm", "backspace", 30)
-        if user32.GetKeyState(0x14) & 1 and self.clock - self.last_key < 0.5:
+        if osl.capslock_on() and self.clock - self.last_key < 0.5:
             if sum(1 for t in self.keys if self.clock - t < 3) >= 8:   # typing with caps lock on
                 self.queue_react("caps", "capslock", 120)
         if tick != self.last_input_all:
@@ -1754,14 +1605,13 @@ class Pixbot(Acts):
                 self.want_welcome = True
             self.user_active = self.clock
             self.inputs.append(self.clock)
-            buttons = (user32.GetAsyncKeyState(1) & 0x8000) or (user32.GetAsyncKeyState(2) & 0x8000)
+            buttons = osl.mouse_down()
             if cur == self.prev_cur and not buttons:          # input without mouse movement = a key
                 self.keys.append(self.clock)
                 self.key_pulse += 1
                 self.last_key = self.clock
-                for vk in list(range(0x41, 0x5B)) + list(range(0x30, 0x3A)) + [0x20, 0xBE, 0xBC]:
-                    if user32.GetAsyncKeyState(vk) & 0x8000:  # which key? (typing uses many)
-                        self.keycodes.append((self.clock, vk))
+                for vk in osl.typing_keys_down():            # which key? (typing uses many)
+                    self.keycodes.append((self.clock, vk))
             if self.idle_visited:
                 self.idle_visited = False
         self.prev_cur = cur
@@ -2536,8 +2386,7 @@ class Pixbot(Acts):
 
     def keep_on_top(self):
         if self.state != "hidden":
-            self.root.attributes("-topmost", False)
-            self.root.attributes("-topmost", True)
+            osl.raise_top(self.root)
         self.root.after(3000, self.keep_on_top)
 
     # ====================== mouse ======================
@@ -2628,7 +2477,6 @@ class Pixbot(Acts):
 
 if __name__ == "__main__":
     # only one Pixbot at a time
-    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\PixbotDesktopPet")
-    if ctypes.windll.kernel32.GetLastError() == 183:
+    if not osl.single_instance("PixbotDesktopPet"):
         sys.exit(0)
     Pixbot().root.mainloop()

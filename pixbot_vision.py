@@ -7,6 +7,9 @@ disk) and finds:
   icons    : small detailed blobs (logos, app icons) with their main colour
 Works for any app because it only looks at pixels.
 """
+import os
+import sys
+
 import numpy as np
 from PIL import ImageGrab
 
@@ -54,7 +57,11 @@ def _blobs(busy):
 def scan(mon, masks=(), top_clear=70, bottom=None):
     l, t, r, b = mon
     bottom = bottom or b
-    img = ImageGrab.grab(bbox=(l, t, r, bottom), all_screens=True).convert("RGB")
+    if sys.platform == "win32":
+        img = ImageGrab.grab(bbox=(l, t, r, bottom), all_screens=True)
+    else:   # X11: ask the X server directly (never falls back to a screenshot tool / temp file)
+        img = ImageGrab.grab(bbox=(l, t, r, bottom), xdisplay=os.environ.get("DISPLAY", ":0"))
+    img = img.convert("RGB")
     rgb = np.asarray(img)[::STEP, ::STEP]
     a = rgb.astype(np.int16).mean(axis=2).astype(np.int16)
     h, w = a.shape
