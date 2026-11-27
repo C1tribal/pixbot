@@ -25,11 +25,20 @@ kill $PET 2>/dev/null; sleep 2; pkill -f "Pixbot" 2>/dev/null; sleep 1
 sleep 25
 python3 linux/smoke_check.py build/smoke/app.png app
 R2=$?
+# the app must have started Pixbot himself as a separate process
+cp "$HOME/.config/Pixbot/pixbot-pet.log" build/smoke/pet-from-app.log 2>/dev/null
+if pgrep -f -- "--pet" >/dev/null; then
+  echo "::notice::app started Pixbot (pid $(pgrep -f -- "--pet" | head -1))"
+else
+  msg="$(tail -30 build/smoke/pet-from-app.log 2>/dev/null | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+  echo "::error title=The app did not start Pixbot::${msg:-no log}"
+  R2=1
+fi
 pkill -f "Pixbot" 2>/dev/null; sleep 1
 
 FAIL=0
-for f in build/smoke/pet.log build/smoke/app.log; do
-  if grep -q "Traceback" "$f"; then
+for f in build/smoke/pet.log build/smoke/app.log build/smoke/pet-from-app.log; do
+  if [ -f "$f" ] && grep -q "Traceback" "$f"; then
     # show the error itself as an annotation (newlines encoded as %0A)
     msg="$(grep -A 25 -m 1 "Traceback" "$f" | head -40 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
     echo "::error title=Python error in $f::$msg"; cat "$f"; FAIL=1

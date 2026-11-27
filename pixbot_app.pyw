@@ -37,10 +37,26 @@ def pet_pid():
 def start_pet():
     if not pet_pid():
         if osl.IS_WIN:
-            subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR, creationflags=0x00000008)
+            subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR, creationflags=0x00000008,
+                             env=pixbot_paths.child_env())
         else:
-            subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR, start_new_session=True,
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # anything he prints (e.g. an error while starting) goes to pixbot-pet.log
+            with open(pixbot_paths.PET_LOG, "w", encoding="utf-8") as log:
+                subprocess.Popen(pixbot_paths.launch_cmd(), cwd=pixbot_paths.DATA_DIR,
+                                 start_new_session=True, env=pixbot_paths.child_env(),
+                                 stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+
+
+def pet_start_problem():
+    """If Pixbot didn't start, the last lines he printed (or None)."""
+    if osl.IS_WIN or pet_pid():
+        return None
+    try:
+        with open(pixbot_paths.PET_LOG, encoding="utf-8", errors="replace") as f:
+            lines = [ln.rstrip() for ln in f if ln.strip() and not ln.startswith("pixbot: ImageTk")]
+    except OSError:
+        return None
+    return "\n".join(lines[-15:]) or "He closed right away without saying why."
 
 
 def send(cmd):
@@ -1061,13 +1077,26 @@ class App:
             stop_pet()
         else:
             start_pet()
+            self.root.after(5000, self.check_started)
         self.root.after(600, self.refresh_status)
+
+    def check_started(self):
+        """Linux: tell you why, if he didn't come up."""
+        problem = pet_start_problem()
+        if problem:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Pixbot didn't start",
+                "Pixbot couldn't start. What he said:\n\n" + problem[-1500:] +
+                "\n\nThis is saved in " + pixbot_paths.PET_LOG +
+                " - please send it to us on GitHub (Issues) so we can fix it.")
 
     def restart_pet(self):
         self.save_now()
         stop_pet()
         start_pet()
         self.root.after(800, self.refresh_status)
+        self.root.after(5000, self.check_started)
 
     def refresh_status(self):
         running = bool(pet_pid())
@@ -1090,4 +1119,6 @@ if __name__ == "__main__":
     linux_menu_setup()
     if not pet_pid():                                       # opening Pixbot = Pixbot appears
         start_pet()
-    App().root.mainloop()
+    app = App()
+    app.root.after(5000, app.check_started)
+    app.root.mainloop()

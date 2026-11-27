@@ -27,6 +27,7 @@ ICON_PNG = os.path.join(RES_DIR, "pixbot.png")
 # donation links: your own copy in DATA_DIR wins, otherwise the one that ships with Pixbot
 LINKS_FILE = os.path.join(DATA_DIR, "pixbot_links.json")
 DEFAULT_LINKS_FILE = os.path.join(RES_DIR, "pixbot_links.json")
+PET_LOG = os.path.join(DATA_DIR, "pixbot-pet.log")      # Linux: what Pixbot printed when he last started
 
 # one-time move of settings that older versions kept next to the scripts
 _old = os.path.join(SRC_DIR, "pixbot_settings.json")
@@ -52,3 +53,21 @@ def launch_cmd(settings=False):
     pyw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
     exe = pyw if IS_WIN and os.path.exists(pyw) else sys.executable
     return [exe, os.path.join(RES_DIR, "pixbot.pyw")] + flag
+
+
+def child_env():
+    """Environment for starting another copy of Pixbot: a fresh copy, not a helper of this
+    one (otherwise the packaged app's own library paths leak into it)."""
+    env = dict(os.environ)
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    for k in list(env):
+        if k.startswith("_PYI_") or k == "_MEIPASS2":
+            env.pop(k)
+    if not IS_WIN and FROZEN:
+        for var in ("LD_LIBRARY_PATH", "TCL_LIBRARY", "TK_LIBRARY"):
+            orig = env.pop(var + "_ORIG", None)
+            if orig is not None:
+                env[var] = orig
+            elif var == "LD_LIBRARY_PATH":
+                env.pop(var, None)
+    return env

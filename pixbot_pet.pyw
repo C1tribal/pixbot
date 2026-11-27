@@ -2472,7 +2472,8 @@ class Pixbot(Acts):
     def open_app(self):
         import subprocess
         import pixbot_paths
-        subprocess.Popen(pixbot_paths.launch_cmd(settings=True), cwd=pixbot_paths.DATA_DIR)
+        subprocess.Popen(pixbot_paths.launch_cmd(settings=True), cwd=pixbot_paths.DATA_DIR,
+                         env=pixbot_paths.child_env())
 
 
 if __name__ == "__main__":
